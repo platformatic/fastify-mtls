@@ -36,11 +36,25 @@ test('should implement mTLS', async (t) => {
 
   // should not connect without certificate
   try {
+    const dispatcher = new UndiciTLSDispatcher({
+      tlsConfig: [
+        { url, tls: { ca } }
+      ]
+    })
+    await request(`${url}/mtls`, { dispatcher })
+  } catch (err) {
+    assert.strictEqual(err.code, 'UND_ERR_SOCKET')
+    assert.strictEqual(err.message, 'other side closed')
+  }
+
+  // Should give self-signed error if CA chain is not configured in the client
+  try {
     await request(`${url}/mtls`)
   } catch (err) {
     assert.strictEqual(err.code, 'SELF_SIGNED_CERT_IN_CHAIN')
     assert.strictEqual(err.message, 'self-signed certificate in certificate chain')
   }
+
   await server.close()
 })
 
