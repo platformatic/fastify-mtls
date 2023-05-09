@@ -45,7 +45,6 @@ test('should decorate server with tls data', async (t) => {
     secretId: 'fake-secret-id',
     CAName: 'your_ca',
     PKIRole: 'ca_role',
-    vaultToken: 'a-sample-token',
     commonName: 'example.com',
     ttl: '365d'
   }
