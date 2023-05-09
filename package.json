@@ -17,6 +17,6 @@
   },
   "dependencies": {
     "fastify-plugin": "^4.5.0",
-    "vault-pki-fetcher": "^0.1.0"
+    "vault-pki-fetcher": "^0.2.0"
   }
 }
