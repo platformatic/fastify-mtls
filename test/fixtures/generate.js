@@ -147,7 +147,11 @@ class CertificateGeneration {
       serverAuth: true
     }, {
       name: 'subjectAltName',
-      altNames: validDomains.map(domain => { return { type: 2, value: domain } })
+      altNames: [
+        { type: 7, ip: '0.0.0.0' },
+        { type: 7, ip: '127.0.0.1' },
+        ...validDomains.map(domain => { return { type: 2, value: domain } })
+      ]
     }]
 
     // Create an empty Certificate
@@ -181,8 +185,10 @@ module.exports = function generateCertificates (hosts) {
   */
   const output = {}
   hosts.forEach((host) => {
-    output[host] = CertificateGeneration.CreateHostCert(host, ['localhost', '0.0.0.0'], CA)
+    output[host] = CertificateGeneration.CreateHostCert(host, ['localhost'], CA)
   })
   output.CA = CA.certificate
+  console.log(output['server.local'].certificate)
+  console.log(output['client.local'].certificate)
   return output
 }

@@ -1,6 +1,6 @@
 'use strict'
-'use strict'
-
+const { join } = require('node:path')
+const { readFile } = require('node:fs/promises')
 const test = require('node:test')
 const assert = require('node:assert')
 
@@ -11,12 +11,15 @@ const UndiciTLSDispatcher = require('undici-tls-dispatcher')
 const generateCertificates = require('./fixtures/generate')
 
 const certificates = generateCertificates(['client.local', 'server.local'])
-
+const fixturesDirectory = join(__dirname, 'fixtures', 'e2e')
 test('should implement mTLS', async (t) => {
   const { url, server } = await buildServer()
   const key = certificates['client.local'].privateKey
   const ca = certificates.CA
   const cert = certificates['client.local'].certificate
+  // const key = await readFile(join(fixturesDirectory, 'client', 'key.pem'), 'utf-8')
+  // const ca = await readFile(join(fixturesDirectory, 'client', 'ca.pem'), 'utf-8')
+  // const cert = await readFile(join(fixturesDirectory, 'client', 'cert.pem'), 'utf-8')
   const dispatcher = new UndiciTLSDispatcher({
     tlsConfig: [
       {
@@ -30,9 +33,9 @@ test('should implement mTLS', async (t) => {
     ]
   })
   const serverPort = server.addresses()[0].port
-  const res = await request(`https://localhost:${serverPort}/mtls`, { dispatcher })
+  const res = await request(`${url}/mtls`, { dispatcher })
   const body = await res.body.json()
-  assert.strictEqual(body.message, 'You are client.local')
+  assert.strictEqual(body.message, 'You are client.test.com')
 
   // // should not connect without certificate
   // try {
@@ -41,7 +44,7 @@ test('should implement mTLS', async (t) => {
   //       { url, tls: { ca } }
   //     ]
   //   })
-  //   await request(`https://localhost:${serverPort}/mtls`, { dispatcher })
+  //   await request(`${url}/mtls`, { dispatcher })
   // } catch (err) {
   //   assert.strictEqual(err.code, 'UND_ERR_SOCKET')
   //   assert.strictEqual(err.message, 'other side closed')
@@ -49,7 +52,7 @@ test('should implement mTLS', async (t) => {
 
   // // Should give self-signed error if CA chain is not configured in the client
   // try {
-  //   await request(`https://localhost:${serverPort}/mtls`)
+  //   await request(`${url}/mtls`)
   // } catch (err) {
   //   assert.strictEqual(err.code, 'SELF_SIGNED_CERT_IN_CHAIN')
   //   assert.strictEqual(err.message, 'self-signed certificate in certificate chain')
@@ -62,6 +65,9 @@ async function buildServer () {
   const key = certificates['server.local'].privateKey
   const ca = certificates.CA
   const cert = certificates['server.local'].certificate
+  // const key = await readFile(join(fixturesDirectory, 'server', 'key.pem'), 'utf-8')
+  // const ca = await readFile(join(fixturesDirectory, 'server', 'ca.pem'), 'utf-8')
+  // const cert = await readFile(join(fixturesDirectory, 'server', 'cert.pem'), 'utf-8')
   const mockAgent = new MockAgent()
   mockAgent
     .get('http://vault.cluster')
@@ -109,6 +115,6 @@ async function buildServer () {
     const clientcert = req.raw.socket.getPeerCertificate(false)
     return { message: `You are ${clientcert.subject.CN}` }
   })
-  const url = await server.listen({ host: 'localhost', port: 0 })
+  const url = await server.listen({ host: '127.0.0.1', port: 0 })
   return { url, server }
 }
