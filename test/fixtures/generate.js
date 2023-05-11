@@ -98,10 +98,52 @@ class CertificateGeneration {
     return { certificate: pemCert, privateKey: pemKey, notBefore: cert.validity.notBefore, notAfter: cert.validity.notAfter }
   }
 
+  static CreateIntermediateCA (rootCAObject) {
+    // Create a new Keypair for the Intermediate CA
+    const { privateKey, publicKey } = forge.pki.rsa.generateKeyPair(2048)
+    const extensions = [{
+      name: 'basicConstraints',
+      cA: true
+    }, {
+      name: 'keyUsage',
+      keyCertSign: true,
+      cRLSign: true
+    }]
+
+    // Convert the Root CA PEM details, to a forge Object
+    const rootCACert = forge.pki.certificateFromPem(rootCAObject.certificate)
+    const rootCAKey = forge.pki.privateKeyFromPem(rootCAObject.privateKey)
+
+    // Create a CSR
+    const csr = forge.pki.createCertificationRequest()
+    csr.publicKey = publicKey
+    csr.sign(rootCAKey, forge.md.sha512.create())
+    const cert = forge.pki.createCertificate()
+    // Set the Certificate attributes for the new Intermediate CA
+    cert.publicKey = publicKey
+    cert.privateKey = privateKey
+    cert.serialNumber = randomSerialNumber()
+    cert.validity.notBefore = getCertNotBefore()
+    cert.validity.notAfter = getCANotAfter(cert.validity.notBefore)
+    cert.setSubject(csr.subject.attributes)
+    cert.setIssuer(rootCACert.subject.attributes)
+    cert.setExtensions(extensions)
+
+    // Sign the Certificate with Root CA Private Key
+    cert.sign(rootCAKey, forge.md.sha512.create())
+
+    // Convert to PEM format
+    const pemCert = forge.pki.certificateToPem(cert)
+    const pemKey = forge.pki.privateKeyToPem(privateKey)
+
+    // Return the PEM encoded cert and private key
+    return { certificate: pemCert, privateKey: pemKey, notBefore: cert.validity.notBefore, notAfter: cert.validity.notAfter }
+  }
+
   static CreateHostCert (hostCertCN, validDomains, rootCAObject) {
     if (!hostCertCN.toString().trim()) throw new Error('"hostCertCN" must be a String')
     if (!Array.isArray(validDomains)) throw new Error('"validDomains" must be an Array of Strings')
-    if (!rootCAObject || !rootCAObject.hasOwnProperty('certificate') || !rootCAObject.hasOwnProperty('privateKey')) throw new Error('"rootCAObject" must be an Object with the properties "certificate" & "privateKey"')
+    if (!rootCAObject || !rootCAObject.certificate || !rootCAObject.privateKey) throw new Error('"rootCAObject" must be an Object with the properties "certificate" & "privateKey"')
 
     // Convert the Root CA PEM details, to a forge Object
     const caCert = forge.pki.certificateFromPem(rootCAObject.certificate)
@@ -173,22 +215,23 @@ class CertificateGeneration {
     const pemHostCert = forge.pki.certificateToPem(newHostCert)
     const pemHostKey = forge.pki.privateKeyToPem(hostKeys.privateKey)
 
-    return { certificate: pemHostCert, privateKey: pemHostKey, notAfter: newHostCert.validity.notBefore, notAfter: newHostCert.validity.notAfter }
+    return { certificate: pemHostCert, privateKey: pemHostKey, notBefore: newHostCert.validity.notBefore, notAfter: newHostCert.validity.notAfter }
   }
 }
 
 module.exports = function generateCertificates (hosts) {
   const CA = CertificateGeneration.CreateRootCA()
-
+  const intCA = CertificateGeneration.CreateIntermediateCA(CA)
+  console.log(intCA)
   /* The following certificate:
     - Will be signed by the CA we just created above.
   */
   const output = {}
   hosts.forEach((host) => {
-    output[host] = CertificateGeneration.CreateHostCert(host, ['localhost'], CA)
+    output[host] = CertificateGeneration.CreateHostCert(host, ['localhost'], intCA)
   })
-  output.CA = CA.certificate
-  console.log(output['server.local'].certificate)
-  console.log(output['client.local'].certificate)
+  output.CA = intCA.certificate
+  // console.log(output['server.local'].certificate)
+  // console.log(output['client.local'].certificate)
   return output
 }
