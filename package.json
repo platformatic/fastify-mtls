@@ -1,6 +1,6 @@
 {
   "name": "fastify-mtls",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Enables mTLS on a Fastify server",
   "main": "index.js",
   "scripts": {
