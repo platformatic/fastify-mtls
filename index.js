@@ -1,20 +1,17 @@
 const fp = require('fastify-plugin')
 const getCertificate = require('vault-pki-fetcher')
 
-async function fastifyMTLS (app, options, done) {
-  app.addHook('onReady', async () => {
-    const tls = await getCertificate(options)
-    const { key, cert, ca } = tls
-    app.decorate('mtls', {
-      key, cert, ca
-    })
-    app.server.setSecureContext({
-      key,
-      cert,
-      ca
-    })
+async function fastifyMTLS (app, options) {
+  const tls = await getCertificate(options)
+  const { key, cert, ca } = tls
+  app.decorate('mtls', {
+    key, cert, ca
   })
-  done()
+  app.server.setSecureContext({
+    key,
+    cert,
+    ca
+  })
 }
 
 module.exports = fp(fastifyMTLS, {
